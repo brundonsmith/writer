@@ -1,0 +1,145 @@
+* {
+  box-sizing: border-box;
+  font-family: var(--font);
+  transition: all 0.2s ease-out;
+}
+
+body {
+  margin: 0;
+
+  --document-width: 800px;
+}
+
+.app {
+  min-height:100vh;
+  padding: 64px 16px;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.sans-serif {
+  --font: sans-serif;
+}
+.serif {
+  --font: serif;
+}
+.monospace {
+  --font: monospace;
+}
+
+.theme-light {
+  --foreground: rgb(10, 10, 10);
+  --background: rgb(240, 240, 240);
+}
+.theme-dark {
+  --foreground: rgb(240, 240, 240);
+  --background: rgb(10, 10, 10);
+}
+
+.controls {
+  padding:0 1rem;
+  transition: opacity 0.5s ease-out;
+}
+.controls.hidden {
+  opacity:0;
+}
+.controls.left {
+  display:flex;
+  flex-direction: column;
+  position: absolute;
+  right: calc(50% + var(--document-width) / 2);
+}
+
+.documents > .document-listing {
+  cursor: pointer;
+  user-select:none;
+  background: var(--background);
+  padding: 0.2em 0.5em;
+  border-radius: 2px;
+}
+.documents > .document-listing:hover {
+  filter: invert(20%);
+}
+.documents > .document-listing.selected {
+  filter: invert(100%);
+}
+
+.document {
+  display:block;
+  width: 100%;
+  max-width:var(--document-width);
+  min-height: calc(100vh - 64px - 64px);
+  margin:0 auto;
+  border:none;
+  resize: none;
+  background: transparent;
+  color: var(--foreground);
+  font-family: var(--font);
+  font-size: 16px;
+}
+
+.document:focus {
+  outline: none;
+}
+
+/* all radio buttons */
+.buttons {
+  display:flex;
+  justify-content: flex-end;
+}
+.buttons:not(:first-child) {
+  margin-top: 8px;
+}
+.buttons > input[type="radio"] {
+  display:inline-block;
+  border-radius:50%;
+  width: 20px;
+  height: 20px;
+  text-align: center;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: var(--foreground);
+  color: var(--background);
+  box-shadow: 0px 0px 5px rgba(255, 255, 255, 0.4);
+  transition: box-shadow 0.1s ease-out, transform 0.1s ease-out;
+  cursor:pointer;
+  user-select: none;
+}
+.buttons > input[type="radio"]:focus {
+  outline:none;
+}
+.buttons > input[type="radio"]:hover {
+  box-shadow: 0px 0px 10px rgba(255, 255, 255, 1);
+}
+.buttons > input[type="radio"]:checked {
+  transform: translateY(-5px);
+}
+
+/* font radio buttons */
+.buttons > input[type="radio"][name="font"]::before,
+.buttons > input[type="radio"][name="theme"]::before {
+  display:block;
+  content: 'Ab';
+  font-size: 14px;
+  font-weight:bold;
+  transform: translateY(3px);
+}
+.buttons > input[type="radio"][value="sans-serif"] {
+  font-family: sans-serif;
+}
+.buttons > input[type="radio"][value="serif"] {
+  font-family: serif;
+}
+.buttons > input[type="radio"][value="monospace"] {
+  font-family: monospace;
+}
+
+/* theme radio buttons */
+.buttons > input[type="radio"][value="light"] {
+  background-color: white;
+  color: black;
+}
+.buttons > input[type="radio"][value="dark"] {
+  background-color: black;
+  color: white;
+}

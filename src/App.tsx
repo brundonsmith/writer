@@ -71,7 +71,7 @@ class App extends React.Component<Props,State> {
         </div>
       
         <textarea 
-          className="document" 
+          className={`document ${this.state.font}`} 
           value={this.state.currentDocumentBody} 
           onChange={this.handleBodyChange} />
       </div>
@@ -84,7 +84,8 @@ class App extends React.Component<Props,State> {
       name="font" 
       value={font}
       className={font}
-      checked={this.state.font === font} />
+      checked={this.state.font === font}
+      onChange={e => this.setState({ font: e.target.value })} />
 
   _renderThemeCheckbox = (theme: string) =>
     <input 
@@ -92,7 +93,8 @@ class App extends React.Component<Props,State> {
       name="theme" 
       value={theme} 
       className={theme}
-      checked={this.state.theme === theme} />
+      checked={this.state.theme === theme}
+      onChange={e => this.setState({ theme: e.target.value })} />
 
 
   handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => 
@@ -120,4 +122,4 @@ class App extends React.Component<Props,State> {
   }
 }
 
-window.onload = () => ReactDOM.render(<App />, document.body);
+window.onload = () => ReactDOM.render(<App />, document.querySelector('#root'));

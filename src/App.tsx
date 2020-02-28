@@ -6,8 +6,8 @@ import { ipcRenderer } from 'electron';
 type Props = {};
 type State = {
   documents: Array<string>,
-  currentDocument: string,
-  currentDocumentBody: string,
+  text: string,
+  previousName: string|null,
 
   controlsHidden: boolean,
   theme: 'theme-dark'|'theme-light',
@@ -18,8 +18,8 @@ class App extends React.Component<Props,State> {
 
   state: State = {
     documents: [],
-    currentDocument: '',
-    currentDocumentBody: '',
+    text: '',
+    previousName: null,
 
     controlsHidden: false,
     theme: 'theme-dark',
@@ -28,98 +28,146 @@ class App extends React.Component<Props,State> {
 
   textAreaRef: HTMLTextAreaElement|null|undefined;
 
+
   componentDidMount() {
     window.addEventListener('keydown', () => this.setState({ controlsHidden: true }));
-    window.addEventListener('mousemove', (e) => {
-      if(e.target !== this.textAreaRef) {
-        this.setState({ controlsHidden: false })
-      }
-    });
+    window.addEventListener('mousemove', (e) => this.setState({ controlsHidden: false }));
 
-    this.updateDocuments();
+    this.loadDocumentsList();
   }
 
-  componentDidUpdate() {
+  componentDidUpdate(prevProps: Props, prevState: State) {
+
     // textarea auto-expands vertically to fit content
     if(this.textAreaRef != null) {
-      this.textAreaRef.style.height = `${this.textAreaRef.scrollHeight}px`;
+      //this.textAreaRef.style.height = `${this.textAreaRef.scrollHeight}px`;
     }
   }
 
   render() {
     return (
       <div className={`app ${this.state.theme}`}>
-        <div className={`controls left ${this.state.controlsHidden ? 'hidden' : ''}`}>
+        <div className={`controls ${this.state.controlsHidden ? 'hidden' : ''}`}>
           <div className="buttons fonts">
-            {this._renderFontCheckbox('sans-serif')}
-            {this._renderFontCheckbox('serif')}
-            {this._renderFontCheckbox('monospace')}
+            {this._renderCheckbox('font', 'sans-serif')}
+            &nbsp;
+            &nbsp;
+            {this._renderCheckbox('font', 'serif')}
+            &nbsp;
+            &nbsp;
+            {this._renderCheckbox('font', 'monospace')}
           </div>
           <div className="buttons themes">
-            {this._renderThemeCheckbox('theme-light')}
-            {this._renderThemeCheckbox('theme-dark')}
+            {this._renderCheckbox('theme', 'theme-light')}
+            &nbsp;
+            &nbsp;
+            {this._renderCheckbox('theme', 'theme-dark')}
           </div>
 
           <div className="documents">
+
+            <div 
+                className={`document-listing ${!this.state.text.trim() ? 'selected' : ''}`} 
+                onClick={this.newDocument}>
+              + New
+            </div>
+
             {this.state.documents.map(doc =>
               <div 
-                  className={`document-listing ${doc === this.state.currentDocument ? 'selected' : ''}`} 
-                  onClick={() => this.loadDocument(doc)} key={doc}>
+                  className={`document-listing ${documentName(this.state.text) === doc ? 'selected' : ''}`} 
+                  onClick={() => this.loadDocumentText(doc)} key={doc}>
                 {doc}
               </div>)}
+
           </div>
         </div>
       
         <textarea 
           className={`document ${this.state.font}`} 
-          value={this.state.currentDocumentBody} 
-          onChange={this.handleBodyChange} />
+          value={this.state.text} 
+          onChange={this.handleTextareaChange}
+          onKeyDown={this.handleTextareaKeyDown}
+          ref={el => this.textAreaRef = el} />
       </div>
     )
   }
 
-  _renderFontCheckbox = (font: string) =>
+  _renderCheckbox = (keyName: 'font'|'theme', value: string) =>
     <input 
       type="radio" 
-      name="font" 
-      value={font}
-      className={font}
-      checked={this.state.font === font}
-      onChange={e => this.setState({ font: e.target.value })} />
-
-  _renderThemeCheckbox = (theme: string) =>
-    <input 
-      type="radio" 
-      name="theme" 
-      value={theme} 
-      className={theme}
-      checked={this.state.theme === theme}
-      onChange={e => this.setState({ theme: e.target.value })} />
+      name={keyName}
+      value={value}
+      className={value}
+      checked={this.state[keyName] === value}
+      onChange={e => this.setState({ [keyName]: e.target.value })} />
 
 
-  handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => 
-    this.setState({ currentDocumentBody: e.target.value }, this.saveCurrentDocument);
+  handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => 
+    this.setState({ text: e.target.value }, this.saveCurrentDocument);
 
-  updateDocuments = () => {
-    ipcRenderer.once('list-documents', (event, arg) => {
-      this.setState({ documents: JSON.parse(arg) })
-    })
-    ipcRenderer.send('list-documents');
-  }
+  handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if(e.key === 'Tab') {
+      e.preventDefault();
 
-  loadDocument = (document: string) => {
-    ipcRenderer.once('load-document', (event, arg) => {
+      let textarea = e.target as HTMLTextAreaElement;
+      let cursorPosition = textarea.selectionStart;
+
       this.setState({ 
-        currentDocument: document,
-        currentDocumentBody: arg
-      })
-    })
-    ipcRenderer.send('load-document', document);
+        text: textarea.value.substr(0, cursorPosition) + '\t' + textarea.value.substr(cursorPosition)
+      }, () => {
+        textarea.selectionStart = textarea.selectionEnd = cursorPosition + 1;
+        this.saveCurrentDocument();
+      });
+    }
   }
+
+  newDocument = () => {
+    this.setState({
+      text: '',
+      previousName: null
+    })
+  }
+
+  loadDocumentsList = () =>
+    ipcPromise('list-documents')
+      .then(res => this.setState({ documents: JSON.parse(res) }));
+
+  loadDocumentText = (document: string) =>
+    ipcPromise('load-document', document)
+      .then(res => 
+        this.setState({ 
+          text: res,
+          previousName: document
+        }));
 
   saveCurrentDocument = () => {
-    ipcRenderer.send('save-document', this.state.currentDocument, this.state.currentDocumentBody);
+    if(this.state.text.trim() && !this.saving) {
+      this.saving = true;
+      let { previousName, text } = this.state;
+
+      ipcPromise('save-document', previousName, documentName(text), text)
+        .then(() => 
+          this.setState({ 
+            previousName: documentName(text)
+          }))
+        .then(this.loadDocumentsList)
+        .finally(() => this.saving = false)
+    }
   }
+
+  saving = false;
 }
+
+const documentName = (documentBody: string) =>
+  (documentBody
+    .split('\n')
+    .find(line => !!line) || '')
+    .replace(/[\/|\\:*?"<>]/g, " ") + '.txt';
+
+const ipcPromise = (event: string, ...args: Array<string|null|undefined>): Promise<string> =>
+    new Promise(res => {
+      ipcRenderer.once(event, (event, arg) => res(arg))
+      ipcRenderer.send(event, ...args);
+    })
 
 window.onload = () => ReactDOM.render(<App />, document.querySelector('#root'));

@@ -44,18 +44,30 @@ const fs = require('fs')
 const path = require('path')
 
 // TODO: Prompt for this and remember it between openings
-const WORKSPACE = `/Users/brundolf/Desktop`
+const WORKSPACE = `/Users/brundolf/notes`
 
 ipcMain.on('list-documents', (event) => {  
   fs.readdir(path.resolve(WORKSPACE), (err, files) =>
-    event.reply('list-documents', JSON.stringify(files)))
+    event.reply('list-documents', JSON.stringify(
+      files.map(fileName =>
+        ({
+          name: fileName,
+          time: fs.statSync(path.resolve(WORKSPACE) + '/' + fileName).mtime.getTime()
+        }))
+      .sort((a, b) => b.time - a.time)
+      .map(v => v.name))))
+
 })
 
 ipcMain.on('load-document', (event, doc) => {  
   fs.readFile(path.resolve(WORKSPACE, doc), 'utf8', (err, file) =>
-    event.reply('load-document', file))
+    event.reply('load-document', file || ''))
 })
 
-ipcMain.on('save-document', (event, doc, body) => {  
-  fs.writeFile(path.resolve(WORKSPACE, doc), body, () => {})
+ipcMain.on('save-document', (event, previousName, newName, body) => {
+  if(previousName) {
+    fs.renameSync(path.resolve(WORKSPACE, previousName), path.resolve(WORKSPACE, newName));
+  }
+
+  fs.writeFile(path.resolve(WORKSPACE, newName), body, () => event.reply('save-document'))
 })

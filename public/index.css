@@ -7,10 +7,14 @@
 body {
   margin: 0;
 
+  --controls-width: 200px;
   --document-width: 800px;
 }
 
 .app {
+  display:flex;
+  justify-content: center;
+  align-items: flex-start;
   min-height:100vh;
   padding: 64px 16px;
   background: var(--background);
@@ -31,29 +35,40 @@ body {
   --font: monospace;
 }
 
-.theme-light,
+/* HACK: Have to separate out the "broad" versions to get the right precedence */
 .theme-light * {
   --foreground: rgb(10, 10, 10);
   --background: rgb(240, 240, 240);
 }
-.theme-dark,
 .theme-dark * {
+  --foreground: rgb(240, 240, 240);
+  --background: rgb(10, 10, 10);
+}
+.theme-light {
+  --foreground: rgb(10, 10, 10);
+  --background: rgb(240, 240, 240);
+}
+.theme-dark {
   --foreground: rgb(240, 240, 240);
   --background: rgb(10, 10, 10);
 }
 
 .controls {
+  display:flex;
+  flex-direction: column;
+  position: absolute;
+  width:var(--controls-width);
+  flex-shrink:0;
+  flex-grow:0;
   padding:0 1rem;
   transition: opacity 0.5s ease-out;
+  right: calc(50% + var(--document-width) / 2);
 }
 .controls.hidden {
   opacity:0;
 }
-.controls.left {
-  display:flex;
-  flex-direction: column;
-  position: absolute;
-  right: calc(50% + var(--document-width) / 2);
+.controls > :not(:first-child) {
+  margin-top: 0.5em;
 }
 
 .documents > .document-listing {
@@ -62,6 +77,9 @@ body {
   background: var(--background);
   padding: 0.2em 0.5em;
   border-radius: 2px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 .documents > .document-listing:hover {
   filter: invert(20%);
@@ -88,13 +106,23 @@ body {
   outline: none;
 }
 
+/* --controls-width + --controls-width + --document-width */
+@media(max-width: 1200px) {
+  body {
+    --document-width: auto;
+  }
+
+  .controls {
+    position:relative;
+    right:auto;
+  }
+}
+
+
 /* all radio buttons */
 .buttons {
   display:flex;
   justify-content: flex-end;
-}
-.buttons:not(:first-child) {
-  margin-top: 8px;
 }
 .buttons > input[type="radio"] {
   display:inline-block;
@@ -104,9 +132,9 @@ body {
   text-align: center;
   -webkit-appearance: none;
   -moz-appearance: none;
-  background: var(--foreground);
-  color: var(--background);
-  box-shadow: 0px 0px 5px rgba(255, 255, 255, 0.4);
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--foreground);
   transition: box-shadow 0.1s ease-out, transform 0.1s ease-out;
   cursor:pointer;
   user-select: none;
@@ -114,38 +142,15 @@ body {
 .buttons > input[type="radio"]:focus {
   outline:none;
 }
-.buttons > input[type="radio"]:hover {
-  box-shadow: 0px 0px 10px rgba(255, 255, 255, 1);
-}
 .buttons > input[type="radio"]:checked {
-  transform: translateY(-5px);
+  transform: scale(1.4);
 }
 
 /* font radio buttons */
-.buttons > input[type="radio"][name="font"]::before,
-.buttons > input[type="radio"][name="theme"]::before {
+.buttons > input[type="radio"]::before {
   display:block;
   content: 'Ab';
   font-size: 14px;
   font-weight:bold;
-  transform: translateY(3px);
-}
-.buttons > input[type="radio"][value="sans-serif"] {
-  font-family: sans-serif;
-}
-.buttons > input[type="radio"][value="serif"] {
-  font-family: serif;
-}
-.buttons > input[type="radio"][value="monospace"] {
-  font-family: monospace;
-}
-
-/* theme radio buttons */
-.buttons > input[type="radio"][value="light"] {
-  background-color: white;
-  color: black;
-}
-.buttons > input[type="radio"][value="dark"] {
-  background-color: black;
-  color: white;
+  transform: translateY(1px);
 }

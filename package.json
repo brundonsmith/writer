@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "build": "cp public/* dist/ ; webpack",
-    "watch": "cp public/* dist/ ; webpack --watch",
-    "electron": "npm run build ; electron main.js"
+    "watch": "cp public/* dist/ ; webpack --watch & (cd dist ; python -m SimpleHTTPServer 4000)",
+    "electron": "npm run build ; electron index.js",
+    "package": "npm run build ; electron-packager ./ Write --platform=darwin"
   },
   "author": "",
   "license": "ISC",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "electron": "^8.0.0",
+    "electron-packager": "^14.2.1",
     "webpack-cli": "^3.3.10"
   }
 }

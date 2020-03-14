@@ -170,7 +170,8 @@ const documentName = (documentBody: string) => {
               .trim()
               .split('\n')
               .find(line => !!line) || '')
-              .replace(/[\/|\\:*?"<>]/g, " ");
+              .replace(/[\/|\\:*?"<>]/g, " ")
+              .substr(0, 50);
               
   return name ? name + '.txt' : '';
 }

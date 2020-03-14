@@ -1,12 +1,12 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { ipcRenderer } from 'electron';
+import { ipcRenderer, remote } from 'electron';
 
 type Props = {};
 type State = {
-  documents: Array<string>,
-  text: string,
+  documentFileNames: Array<string>,
+  currentDocumentText: string,
   previousName: string|null,
 
   controlsHidden: boolean,
@@ -17,8 +17,8 @@ type State = {
 class App extends React.Component<Props,State> {
 
   state: State = {
-    documents: [],
-    text: '',
+    documentFileNames: [],
+    currentDocumentText: '',
     previousName: null,
 
     controlsHidden: false,
@@ -33,7 +33,8 @@ class App extends React.Component<Props,State> {
     window.addEventListener('keydown', () => this.setState({ controlsHidden: true }));
     window.addEventListener('mousemove', (e) => this.setState({ controlsHidden: false }));
 
-    this.loadDocumentsList();
+    ipcPromise('select-directory')
+      .then(this.loadDocumentsList)
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {
@@ -67,15 +68,16 @@ class App extends React.Component<Props,State> {
           <div className="documents">
 
             <div 
-                className={`document-listing ${!this.state.text.trim() ? 'selected' : ''}`} 
+                className={`document-listing ${!this.state.currentDocumentText.trim() ? 'selected' : ''}`} 
                 onClick={this.newDocument}>
               + New
             </div>
 
-            {this.state.documents.map(doc =>
+            {this.state.documentFileNames.map(doc =>
               <div 
-                  className={`document-listing ${documentName(this.state.text) === doc ? 'selected' : ''}`} 
-                  onClick={() => this.loadDocumentText(doc)} key={doc}>
+                  className={`document-listing ${documentName(this.state.currentDocumentText) === doc ? 'selected' : ''}`} 
+                  onClick={() => this.loadDocumentText(doc)} 
+                  key={doc}>
                 {doc}
               </div>)}
 
@@ -84,7 +86,7 @@ class App extends React.Component<Props,State> {
       
         <textarea 
           className={`document ${this.state.font}`} 
-          value={this.state.text} 
+          value={this.state.currentDocumentText} 
           onChange={this.handleTextareaChange}
           onKeyDown={this.handleTextareaKeyDown}
           ref={el => this.textAreaRef = el} />
@@ -92,19 +94,24 @@ class App extends React.Component<Props,State> {
     )
   }
 
-  _renderCheckbox = (keyName: 'font'|'theme', value: string) =>
+  _renderCheckbox = <K extends 'font'|'theme'>(keyName: K, value: State[K]) =>
     <input 
       type="radio" 
       name={keyName}
       value={value}
       className={value}
       checked={this.state[keyName] === value}
-      onChange={e => this.setState({ [keyName]: e.target.value })} />
+      onChange={e => 
+        // @ts-ignore  value will always be the correct type for keyName
+        this.setState({ 
+          [keyName]: value
+        })} />
 
 
   handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => 
-    this.setState({ text: e.target.value }, this.saveCurrentDocument);
+    this.setState({ currentDocumentText: e.target.value }, this.saveCurrentDocument);
 
+  // Allow use of tab key for tab characters
   handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if(e.key === 'Tab') {
       e.preventDefault();
@@ -113,7 +120,7 @@ class App extends React.Component<Props,State> {
       let cursorPosition = textarea.selectionStart;
 
       this.setState({ 
-        text: textarea.value.substr(0, cursorPosition) + '\t' + textarea.value.substr(cursorPosition)
+        currentDocumentText: textarea.value.substr(0, cursorPosition) + '\t' + textarea.value.substr(cursorPosition)
       }, () => {
         textarea.selectionStart = textarea.selectionEnd = cursorPosition + 1;
         this.saveCurrentDocument();
@@ -123,32 +130,32 @@ class App extends React.Component<Props,State> {
 
   newDocument = () => {
     this.setState({
-      text: '',
+      currentDocumentText: '',
       previousName: null
     })
   }
 
   loadDocumentsList = () =>
     ipcPromise('list-documents')
-      .then(res => this.setState({ documents: JSON.parse(res) }));
+      .then(res => this.setState({ documentFileNames: JSON.parse(res) }));
 
   loadDocumentText = (document: string) =>
     ipcPromise('load-document', document)
       .then(res => 
         this.setState({ 
-          text: res,
+          currentDocumentText: res,
           previousName: document
         }));
 
   saveCurrentDocument = () => {
-    if(this.state.text.trim() && !this.saving) {
+    if(!this.saving) {
       this.saving = true;
-      let { previousName, text } = this.state;
+      let { previousName, currentDocumentText } = this.state;
 
-      ipcPromise('save-document', previousName, documentName(text), text)
+      ipcPromise('save-document', previousName, documentName(currentDocumentText), currentDocumentText)
         .then(() => 
           this.setState({ 
-            previousName: documentName(text)
+            previousName: documentName(currentDocumentText)
           }))
         .then(this.loadDocumentsList)
         .finally(() => this.saving = false)
@@ -158,11 +165,15 @@ class App extends React.Component<Props,State> {
   saving = false;
 }
 
-const documentName = (documentBody: string) =>
-  (documentBody
-    .split('\n')
-    .find(line => !!line) || '')
-    .replace(/[\/|\\:*?"<>]/g, " ") + '.txt';
+const documentName = (documentBody: string) => {
+  let name = (documentBody
+              .trim()
+              .split('\n')
+              .find(line => !!line) || '')
+              .replace(/[\/|\\:*?"<>]/g, " ");
+              
+  return name ? name + '.txt' : '';
+}
 
 const ipcPromise = (event: string, ...args: Array<string|null|undefined>): Promise<string> =>
     new Promise(res => {

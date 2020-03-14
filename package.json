@@ -4,10 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "cp public/* dist/ ; webpack",
-    "watch": "cp public/* dist/ ; webpack --watch & (cd dist ; python -m SimpleHTTPServer 4000)",
-    "electron": "npm run build ; electron index.js",
-    "package": "npm run build ; electron-packager ./ Write --platform=darwin"
+    "copy-files": "mkdir dist ; cp src/static/* dist/ ; cp src/index.js dist/ ; cp src/electron-package.json dist/package.json",
+    "build": "npm run copy-files ; webpack",
+    "watch": "npm run copy-files ; webpack --watch & (cd dist ; python -m SimpleHTTPServer 4000)",
+    "electron": "npm run build ; electron ./dist",
+    "package":  "npm run build ; electron-packager ./dist Write --out=./build"
   },
   "author": "",
   "license": "ISC",

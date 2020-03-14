@@ -1,0 +1,2 @@
+- Remembering user preferences like directory selection, theme, etc.
+- Re-organize so the electron build can include just the relevant files

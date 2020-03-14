@@ -1,9 +1,13 @@
 
 // Electron entry point
+const fs = require('fs')
+const path = require('path')
+const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 
-const { app, BrowserWindow, ipcMain } = require('electron')
 
-function createWindow () {
+
+// window setup
+function createWindow() {
   // Create the browser window.
   const win = new BrowserWindow({
     webPreferences: {
@@ -12,10 +16,10 @@ function createWindow () {
   })
 
   win.maximize();
-  win.webContents.openDevTools()
+  //win.webContents.openDevTools()
 
   // and load the index.html of the app.
-  win.loadFile('dist/index.html')
+  win.loadFile('./index.html')
 }
 
 // This method will be called when Electron has finished
@@ -40,19 +44,29 @@ app.on('activate', () => {
   }
 })
 
-const fs = require('fs')
-const path = require('path')
 
-// TODO: Prompt for this and remember it between openings
-const WORKSPACE = `/Users/brundolf/notes`
+
+// documents workspace
+let workspace = ``;
+const selectDirectory = () => 
+  dialog.showOpenDialog({ 
+      title: 'Select a directory for your writings', 
+      message: 'Select a directory for your writings', 
+      properties: ['openDirectory', 'createDirectory'] 
+    })
+    .then(res => workspace = res.filePaths[0])
+
+
+
+// commands exposed to the UI
 
 ipcMain.on('list-documents', (event) => {  
-  fs.readdir(path.resolve(WORKSPACE), (err, files) =>
+  fs.readdir(path.resolve(workspace), (err, files) =>
     event.reply('list-documents', JSON.stringify(
       files.map(fileName =>
         ({
           name: fileName,
-          time: fs.statSync(path.resolve(WORKSPACE) + '/' + fileName).mtime.getTime()
+          time: fs.statSync(path.resolve(workspace) + '/' + fileName).mtime.getTime()
         }))
       .sort((a, b) => b.time - a.time)
       .map(v => v.name))))
@@ -60,14 +74,26 @@ ipcMain.on('list-documents', (event) => {
 })
 
 ipcMain.on('load-document', (event, doc) => {  
-  fs.readFile(path.resolve(WORKSPACE, doc), 'utf8', (err, file) =>
+  fs.readFile(path.resolve(workspace, doc), 'utf8', (err, file) =>
     event.reply('load-document', file || ''))
 })
 
 ipcMain.on('save-document', (event, previousName, newName, body) => {
-  if(previousName) {
-    fs.renameSync(path.resolve(WORKSPACE, previousName), path.resolve(WORKSPACE, newName));
-  }
+  const previousPath = path.resolve(workspace, previousName ?? '');
+  const newPath = path.resolve(workspace, newName);
 
-  fs.writeFile(path.resolve(WORKSPACE, newName), body, () => event.reply('save-document'))
+  if(!body) {
+    fs.unlinkSync(previousPath);
+    event.reply('save-document');
+  } else {
+    if(previousName) {
+      fs.renameSync(previousPath, newPath);
+    }
+
+    fs.writeFile(newPath, body, () => event.reply('save-document'));
+  }
 })
+
+ipcMain.on('select-directory', (event) => 
+  selectDirectory()
+    .then(() => event.reply('select-directory')))
